@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrasi - Dashboard IoT</title>
+    <style>
+        /* Menggunakan CSS yang sama dengan login.html untuk konsistensi */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0; 
+            /* display: grid; dkk. DIHAPUS dari sini */
+            /* padding: 20px 0; DIHAPUS agar header menempel di atas */
+        }
+
+        /* --- Style untuk Header --- */
+        .app-header {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #dddfe2;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1c1e21;
+            text-decoration: none;
+        }
+        
+        .logo:hover {
+            color: #007bff;
+        }
+
+        .main-nav ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        /* --- CSS BARU UNTUK NAVIGASI --- */
+        
+        /* Style Default (Tidak Aktif) */
+        .main-nav a {
+            text-decoration: none;
+            color: #007bff; /* Biru */
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.5rem 1rem; /* Padding disamakan */
+            border-radius: 6px; /* Radius disamakan */
+            transition: all 0.2s ease; /* Transisi untuk semua properti */
+        }
+
+        /* Hover untuk link TIDAK AKTIF */
+        .main-nav a:hover {
+            text-decoration: none;
+            color: #0056b3;
+            background-color: #f0f2f5; /* Latar abu-abu sangat muda */
+        }
+        
+        /* Style untuk link AKTIF (biru) */
+        .main-nav a.active-nav {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .main-nav a.active-nav:hover {
+            background-color: #0069d9; /* Biru lebih gelap */
+            color: white;
+        }
+
+        /* Style untuk tombol Register (hijau, SELALU override) */
+        .main-nav a.btn-register-nav {
+            background-color: #42b72a; 
+            color: white;
+        }
+        
+        .main-nav a.btn-register-nav:hover {
+            background-color: #36a420;
+            text-decoration: none;
+            color: white;
+        }
+        /* --- AKHIR CSS BARU --- */
+
+
+        .register-container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+            margin: 3rem auto; /* DITAMBAHKAN: untuk memberi jarak dari header dan center */
+            margin-bottom: 3rem; /* DITAMBAHKAN: memberi space di bawah */
+        }
+
+        .register-container h1 {
+            text-align: center;
+            color: #1c1e21;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #4b4f56;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn-register-submit {
+            background-color: #42b72a; /* Hijau */
+            color: white;
+            margin-bottom: 1rem;
+        }
+        .btn-register-submit:hover {
+            background-color: #36a420;
+        }
+
+        .separator {
+            text-align: center;
+            border-bottom: 1px solid #dddfe2;
+            line-height: 0.1em;
+            margin: 1.5rem 0;
+        }
+
+        .separator span {
+            background: #fff;
+            padding: 0 10px;
+            color: #888;
+        }
+
+        .login-link {
+            text-decoration: none;
+            color: #007bff;
+            display: block;
+            text-align: center;
+            font-weight: 600;
+        }
+        .login-link:hover {
+            text-decoration: underline;
+        }
+        
+        #messageBox {
+            color: #d93025;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+            text-align: center;
+        }
+        
+        #messageBox.success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <a href="index.html" class="logo">
+            Dashboard IoT
+        </a>
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="login.html">Login</a></li>
+                <li><a href="register.html" class="btn-register-nav">Register</a></li>
+            </ul>
+        </nav>
+    </header>
+    <div class="register-container">
+        <h1>Buat Akun Baru</h1>
+
+        <form id="registerForm">
+            <div id="messageBox"></div>
+            <div class="input-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="input-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="input-group">
+                <label for="confirmPassword">Konfirmasi Password:</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required>
+            </div>
+            <button type="submit" class="btn btn-register-submit">Daftar</button>
+        </form>
+
+        <div class="separator">
+            <span></span>
+        </div>
+
+        <a href="login.html" class="login-link">
+            Sudah punya akun? Login di sini
+        </a>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const messageBox = document.getElementById('messageBox');
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            messageBox.style.display = 'none';
+            messageBox.classList.remove('success');
+            
+            if (password !== confirmPassword) {
+                messageBox.textContent = 'Password dan Konfirmasi Password tidak cocok!';
+                messageBox.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) { 
+                messageBox.textContent = 'Password minimal harus 6 karakter!';
+                messageBox.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://192.168.18.244:3001/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Registrasi gagal');
+                }
+
+                messageBox.textContent = 'Registrasi berhasil! Anda akan diarahkan ke halaman login...';
+                messageBox.classList.add('success');
+                messageBox.style.display = 'block';
+                registerForm.reset();
+
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 3000);
+
+            } catch (error) {
+                messageBox.textContent = error.message;
+                messageBox.style.display = 'block';
+            }
+        });
+    </script>
+
+</body>
+</html>

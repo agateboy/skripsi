@@ -1,0 +1,16 @@
+# Ignore node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional package manager files (uncomment if desired)
+# package-lock.json
+# yarn.lock
+
+# Others
+.pnp
+.pnp.js
+.DS_Store

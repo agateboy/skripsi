@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyek IoT</title>
+    <style>
+        /* Mengambil style dasar dari login.html untuk konsistensi */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- Style untuk Header --- */
+        .app-header {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2.5rem; /* Padding horizontal lebih banyak */
+            display: flex;
+            justify-content: space-between; /* Mendorong logo dan nav ke sisi */
+            align-items: center;
+            border-bottom: 1px solid #dddfe2;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1c1e21;
+            text-decoration: none;
+        }
+        
+        .logo:hover {
+            color: #007bff;
+        }
+
+        .main-nav ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 25px; /* Jarak antar item nav */
+        }
+
+        /* --- CSS BARU UNTUK NAVIGASI --- */
+        
+        /* Style Default (Tidak Aktif) */
+        .main-nav a {
+            text-decoration: none;
+            color: #007bff; /* Biru */
+            font-weight: 600;
+            font-size: 1rem;
+            padding: 0.5rem 1rem; /* Padding disamakan */
+            border-radius: 6px; /* Radius disamakan */
+            transition: all 0.2s ease; /* Transisi untuk semua properti */
+        }
+
+        /* Hover untuk link TIDAK AKTIF */
+        .main-nav a:hover {
+            text-decoration: none;
+            color: #0056b3;
+            background-color: #f0f2f5; /* Latar abu-abu sangat muda */
+        }
+        
+        /* Style untuk link AKTIF (biru) */
+        .main-nav a.active-nav {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .main-nav a.active-nav:hover {
+            background-color: #0069d9; /* Biru lebih gelap */
+            color: white;
+        }
+
+        /* Style untuk tombol Register (hijau, SELALU override) */
+        .main-nav a.btn-register-nav {
+            background-color: #42b72a; 
+            color: white;
+        }
+        
+        .main-nav a.btn-register-nav:hover {
+            background-color: #36a420;
+            text-decoration: none;
+            color: white;
+        }
+        /* --- AKHIR CSS BARU --- */
+
+
+        /* --- Style untuk Konten Utama --- */
+        .main-content {
+            /* Menggunakan gaya 'container' yang sama dengan login/register */
+            max-width: 960px;
+            margin: 3rem auto; /* Jarak dari header */
+            padding: 2.5rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-content h1 {
+            color: #1c1e21;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+        
+        .main-content p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #4b4f56;
+        }
+        
+        .main-content a {
+            color: #007bff;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .main-content a:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        
+        <a href="index.html" class="logo">
+            Dashboard IoT
+        </a>
+        
+        <nav class="main-nav">
+            <ul>
+                <li><a href="index.html" class="active-nav">Home</a></li>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="login.html">Login</a></li>
+                <li><a href="register.html" class="btn-register-nav">Register</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <h1>Selamat Datang di Platform IoT UNY</h1>
+        <p>
+            Ini adalah halaman utama untuk proyek monitoring dan kontrol IoT Anda. Platform ini dirancang untuk memungkinkan pengguna mendaftarkan perangkat (seperti ESP32), mengirim data sensor, dan mengontrol aktuator secara *real-time* melalui dashboard yang dapat disesuaikan.
+        </p>
+        <p>
+            Untuk memulai, silakan <a href="login.html">Login</a> jika Anda sudah memiliki akun. Jika Anda pengguna baru, Anda dapat <a href="register.html">membuat akun baru</a> untuk mendaftarkan perangkat pertama Anda.
+        </p>
+    </main>
+
+</body>
+</html>
