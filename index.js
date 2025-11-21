@@ -27,7 +27,7 @@ app.use(express.json());
 // --- KONEKSI DATABASE ---
 // Ganti 'agate' dan '1@#$Ajasaru' dengan user dan password MySQL Anda
 const db = mysql.createConnection({
-    host: 'localhost',
+    host: '127.0.0.1',
     user: 'agate',
     password: '1@#$Ajasaru',
     database: 'skripsi_iot_db'
