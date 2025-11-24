@@ -12,25 +12,23 @@ Git (Version Control)
 
 Jika belum, jalankan perintah ini di terminal:
 
-Bash
-
+```bash
 sudo apt update
 sudo apt install nodejs npm mysql-server git -y
+```
+
 🚀 Langkah Instalasi (Dari Awal)
 Ikuti langkah-langkah ini secara berurutan.
 
-1. Clone Repository
 Ambil kode program dari GitHub ke komputer lokal Anda.
 
-Bash
-
+```bash
 cd ~/Documents
 git clone https://github.com/agateboy/skripsi.git
 cd skripsi
-2. Install Dependencies
-Install semua pustaka (library) yang dibutuhkan oleh backend (seperti express, mysql2, socket.io).
+```
 
-IoT Monitoring & Control Dashboard (Skripsi)
+IoT Monitoring & Control Dashboard
 
 Deskripsi
 Proyek ini adalah platform IoT berbasis web untuk memantau data sensor dan mengontrol aktuator secara real-time. Backend dibuat dengan Node.js, database menggunakan MySQL, dan frontend berupa file HTML/JavaScript statis.
