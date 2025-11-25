@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Monitoring</title>
+    <style>
+        body { font-family: sans-serif; background: #e9ecef; padding: 20px; text-align: center; }
+        h1 { color: #333; }
+        .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 20px; }
+        .widget { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 350px; }
+        .widget h3 { border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; text-transform: capitalize; }
+        /* Indikator Status untuk Toggle (Read Only) */
+        .status-badge { display: inline-block; padding: 10px 20px; border-radius: 20px; font-weight: bold; color: white; }
+        .on { background-color: #28a745; }
+        .off { background-color: #dc3545; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO client (will connect to server's socket.io endpoint) -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1 id="pageTitle">Memuat Data...</h1>
+    <div id="dashboard-container" class="container"></div>
+
+    <script>
+        // Ambil SLUG dari URL (misal: /v/kebunku -> slug = kebunku)
+        const pathSegments = window.location.pathname.split('/');
+        const slug = pathSegments[pathSegments.length - 1];
+
+        // Global storage for charts so we can update them in-place
+        window.publicCharts = {};
+
+        async function loadData() {
+            try {
+                // Panggil API Publik yang baru kita buat
+                const response = await fetch(`/api/public/view/${slug}`);
+                if (!response.ok) throw new Error('Halaman tidak ditemukan');
+                
+                const result = await response.json();
+                document.getElementById('pageTitle').textContent = result.device_name;
+                renderWidgets(result.widgets, result.data);
+                // After initial render, open socket connection for real-time updates
+                setupSocket();
+            } catch (error) {
+                document.body.innerHTML = `<h1>404</h1><p>${error.message}</p>`;
+            }
+        }
+
+        function renderWidgets(widgets, data) {
+            const container = document.getElementById('dashboard-container');
+            container.innerHTML = ''; // Reset
+
+            widgets.forEach(w => {
+                const div = document.createElement('div');
+                // attach sensor_type so live events can find the widget
+                div.dataset.sensorType = w.sensor_type;
+                div.className = 'widget';
+                div.innerHTML = `<h3>${w.sensor_type}</h3><div id="chart-${w.sensor_type}"></div>`;
+                
+                const widgetData = data.filter(d => d.sensor_type === w.sensor_type);
+
+                if (w.widget_type === 'graph') {
+                    const canvas = document.createElement('canvas');
+                    div.querySelector('div').appendChild(canvas);
+                    container.appendChild(div);
+                    // Save chart instance so socket updates can append points
+                    const chart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: widgetData.map(d => new Date(d.timestamp).toLocaleTimeString()),
+                            datasets: [{ label: w.sensor_type, data: widgetData.map(d => d.value), borderColor: '#007bff', tension: 0.1 }]
+                        }
+                    });
+                    window.publicCharts[w.sensor_type] = chart;
+                } else if (w.widget_type === 'toggle') {
+                    // Tampilkan status saja (Read Only)
+                    const isOn = (w.current_value === 'true');
+                    div.querySelector('div').innerHTML = `<span class="status-badge ${isOn ? 'on' : 'off'}">${isOn ? 'NYALA' : 'MATI'}</span>`;
+                    container.appendChild(div);
+                } else {
+                    // Gauge atau Text biasa
+                    const val = widgetData.length > 0 ? widgetData[widgetData.length-1].value : '-';
+                    div.querySelector('div').innerHTML = `<h1 class="tv-val">${val}</h1>`;
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        // Connect socket.io for real-time updates (after initial load)
+        let socket = null;
+        function setupSocket() {
+            if (socket) return; // already connected
+            socket = io({ auth: { slug } });
+
+            // Widget toggle updates
+            socket.on('publicWidgetUpdated', (update) => {
+                try {
+                    const { sensor_type, current_value } = update;
+                    // find the widget element by data-sensor-type
+                    const el = document.querySelector(`[data-sensor-type="${sensor_type}"]`);
+                    if (!el) return;
+
+                    if (el.querySelector('.status-badge')) {
+                        const isOn = (current_value === 'true');
+                        const badge = el.querySelector('.status-badge');
+                        badge.classList.toggle('on', isOn);
+                        badge.classList.toggle('off', !isOn);
+                        badge.textContent = isOn ? 'NYALA' : 'MATI';
+                    } else if (el.querySelector('.tv-val')) {
+                        el.querySelector('.tv-val').textContent = current_value;
+                    }
+                } catch (e) { console.error('publicWidgetUpdated handler error', e); }
+            });
+
+            // New sensor data (for charts and numeric widgets)
+            socket.on('publicNewData', (d) => {
+                try {
+                    const { sensor_type, value, timestamp } = d;
+                    const chart = window.publicCharts[sensor_type];
+                    if (chart) {
+                        chart.data.labels.push(new Date(timestamp).toLocaleTimeString());
+                        chart.data.datasets[0].data.push(value);
+                        // keep charts to reasonable length
+                        if (chart.data.labels.length > 40) {
+                            chart.data.labels.shift();
+                            chart.data.datasets[0].data.shift();
+                        }
+                        chart.update();
+                    }
+
+                    // update simple numeric display (if exists)
+                    const el = document.querySelector(`[data-sensor-type="${sensor_type}"] .tv-val`);
+                    if (el) el.textContent = value;
+                } catch (e) { console.error('publicNewData handler error', e); }
+            });
+
+            socket.on('connect_error', (err) => {
+                console.warn('Socket connect_error:', err.message);
+            });
+        }
+
+        // Initial load only (no polling) — updates happen via socket
+        loadData();
+    </script>
+</body>
+</html>

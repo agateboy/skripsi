@@ -9,6 +9,7 @@ const app = express();
 const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
+const path = require('path');
 
 // Konfigurasi Socket.IO
 const io = new Server(server, {
@@ -135,7 +136,9 @@ app.post('/api/devices', autentikasiToken, (req, res) => {
 // Mengambil daftar device
 app.get('/api/devices', autentikasiToken, (req, res) => {
     const userId = req.user.userId;
-    const query = 'SELECT device_id, device_name FROM devices WHERE user_id = ?';
+    // PERBAIKAN: Tambahkan 'public_slug' di sini
+    const query = 'SELECT device_id, device_name, public_slug FROM devices WHERE user_id = ?';
+
     db.query(query, [userId], (err, results) => {
         if (err) {
             console.error('Error fetching devices:', err);
@@ -201,16 +204,23 @@ app.post('/api/data', (req, res) => {
 
             // (REAL-TIME) Push data baru ke Dashboard (jika ada data sensor asli)
             if (queryInsert !== '') { // Hanya push jika BUKAN check_command
-                const userSocketId = userSockets[userId];
-                if (userSocketId) {
-                    const dataBaru = {
-                        device_id: deviceId,
-                        sensor_type: sensor_type,
-                        value: value,
-                        timestamp: new Date().toISOString()
-                    };
-                    io.to(userSocketId).emit('newData', dataBaru);
-                }
+                const dataBaru = {
+                    device_id: deviceId,
+                    sensor_type: sensor_type,
+                    value: value,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Kirim ke semua tab user (room user:<userId>)
+                io.to(`user:${userId}`).emit('newData', dataBaru);
+
+                // Juga kirim ke public viewers jika device memiliki public_slug
+                db.query('SELECT public_slug FROM devices WHERE device_id = ?', [deviceId], (errSlug, rowsSlug) => {
+                    if (!errSlug && rowsSlug && rowsSlug.length > 0 && rowsSlug[0].public_slug) {
+                        const publicSlug = rowsSlug[0].public_slug;
+                        io.to(`public:${publicSlug}`).emit('publicNewData', dataBaru);
+                    }
+                });
             }
 
 
@@ -343,28 +353,43 @@ app.delete('/api/widgets/:id', autentikasiToken, (req, res) => {
 
 // --- LOGIKA REAL-TIME WEBSOCKET ---
 io.on('connection', (socket) => {
-    console.log('Seorang user terhubung:', socket.id);
+    console.log('Seorang user/penonton public terhubung:', socket.id);
 
-    // 1. Verifikasi token
-    const token = socket.handshake.auth.token;
-    let socketUserId = null; // Simpan userId untuk socket ini
+    // Terima koneksi jika salah satu tersedia:
+    // - token (authenticated user/tab)
+    // - slug (public view; tidak perlu token)
+    const token = socket.handshake.auth && socket.handshake.auth.token;
+    const slug = (socket.handshake.auth && socket.handshake.auth.slug) || (socket.handshake.query && socket.handshake.query.slug);
 
-    if (!token) {
-        console.log("Koneksi ditolak: Tidak ada token");
+    let socketUserId = null; // Jika user terautentikasi
+
+    if (!token && !slug) {
+        console.log("Koneksi ditolak: Tidak ada token atau slug");
         return socket.disconnect();
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            console.log("Koneksi ditolak: Token tidak valid");
-            return socket.disconnect();
-        }
+    // Jika koneksi public (slug) -> join ke room public:<slug>
+    if (slug && !token) {
+        const room = `public:${slug}`;
+        socket.join(room);
+        console.log(`Public viewer bergabung ke ${room} (${socket.id})`);
+    }
 
-        // Simpan koneksi user
-        console.log(`User ${user.username} (ID: ${user.userId}) terhubung`);
-        userSockets[user.userId] = socket.id;
-        socketUserId = user.userId; // Simpan userId
-    });
+    // Jika ada token -> verifikasi, simpan user socket dan join ke room user:<userId>
+    if (token) {
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) {
+                console.log("Koneksi ditolak: Token tidak valid");
+                return socket.disconnect();
+            }
+
+            console.log(`User ${user.username} (ID: ${user.userId}) terhubung`);
+            // simpan satu socket ID terakhir (juga menggunakan room untuk multi-tab)
+            userSockets[user.userId] = socket.id;
+            socketUserId = user.userId;
+            socket.join(`user:${user.userId}`);
+        });
+    }
 
     // 2. Listener untuk perintah dari Toggle
     socket.on('widgetStateChange', (data) => {
@@ -384,17 +409,29 @@ io.on('connection', (socket) => {
                 return console.log(`Gagal update state untuk widget ${widgetId}`);
             }
 
-            // Sukses update DB.
-            // Sekarang kirim update ke SEMUA browser milik user ini (termasuk yang baru saja mengklik)
-            const userSocketId = userSockets[socketUserId];
-            if (userSocketId) {
-                const updateData = {
-                    widget_id: widgetId,
-                    current_value: newState
-                };
-                // Beri tahu semua tab browser yang terbuka
-                io.to(userSocketId).emit('widgetStateUpdated', updateData);
-            }
+            // Sukses update DB: kirim update ke semua browser milik user ini (termasuk yang baru saja mengklik)
+            const updateData = {
+                widget_id: widgetId,
+                current_value: newState
+            };
+
+            // Emisi ke room user untuk mendukung multi-tab (user:<userId>)
+            io.to(`user:${socketUserId}`).emit('widgetStateUpdated', updateData);
+
+            // --- Juga notifikasi untuk public viewers (jika perangkat punya public_slug)
+            // Ambil public_slug dan sensor_type dari widget -> device
+            const queryPub = `SELECT d.public_slug, w.sensor_type FROM widgets w JOIN devices d ON w.device_id = d.device_id WHERE w.widget_id = ?`;
+            db.query(queryPub, [widgetId], (errPub, pubRows) => {
+                if (!errPub && pubRows && pubRows.length > 0) {
+                    const { public_slug, sensor_type } = pubRows[0];
+                    if (public_slug) {
+                        // Kirim event khusus public sehingga public-view bisa update in-place
+                        io.to(`public:${public_slug}`).emit('publicWidgetUpdated', { widget_id: widgetId, sensor_type: sensor_type, current_value: newState });
+                    }
+                } else if (errPub) {
+                    console.error('Error fetching public slug for widget update:', errPub);
+                }
+            });
         });
     });
 
@@ -407,8 +444,138 @@ io.on('connection', (socket) => {
     });
 });
 
+app.get('/api/public/data', (req, res) => {
+    const { username, device_name } = req.query;
+
+    if (!username || !device_name) {
+        return res.status(400).json({ message: 'Username dan device_name wajib diisi' });
+    }
+
+    // 1. Cari device_id berdasarkan username & device_name
+    // Kita perlu JOIN tabel users dan devices
+    const queryDevice = `
+        SELECT d.device_id, d.device_name
+        FROM devices d
+        JOIN users u ON d.user_id = u.user_id
+        WHERE u.username = ? AND d.device_name = ?
+    `;
+
+    db.query(queryDevice, [username, device_name], (err, devices) => {
+        if (err) {
+            console.error('Error public device lookup:', err);
+            return res.status(500).json({ message: 'Server error' });
+        }
+        if (devices.length === 0) {
+            return res.status(404).json({ message: 'Perangkat tidak ditemukan atau user salah' });
+        }
+
+        const deviceId = devices[0].device_id;
+
+        // 2. Ambil Widget (untuk tahu tipe grafik apa yang harus ditampilkan)
+        const queryWidgets = `
+            SELECT sensor_type, widget_type, data_type, current_value 
+            FROM widgets 
+            WHERE device_id = ?
+        `;
+
+        // 3. Ambil Data Sensor (24 jam terakhir)
+        const queryData = `
+            SELECT sensor_type, value, timestamp 
+            FROM sensor_data 
+            WHERE device_id = ? AND timestamp >= NOW() - INTERVAL 1 DAY 
+            ORDER BY timestamp ASC
+        `;
+
+        // Eksekusi query widget & data secara paralel (sederhana)
+        db.query(queryWidgets, [deviceId], (errW, widgets) => {
+            if (errW) return res.status(500).json({ message: 'Error fetching widgets' });
+
+            db.query(queryData, [deviceId], (errD, sensorData) => {
+                if (errD) return res.status(500).json({ message: 'Error fetching data' });
+
+                // Kirim paket lengkap untuk publik
+                res.json({
+                    device_info: devices[0],
+                    widgets: widgets,
+                    data: sensorData
+                });
+            });
+        });
+    });
+});
+
+
+// --- FITUR SHARE / PUBLIC VIEW ---
+
+// 1. Serve File HTML Public saat URL '/nama_custom' diakses
+// Ini membuat URL terlihat profesional: http://ip:3001/kebunku
+app.get('/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public-view.html'));
+});
+
+// 2. API untuk menyimpan Custom URL (Slug)
+app.post('/api/devices/share', autentikasiToken, (req, res) => {
+    const userId = req.user.userId;
+    const { device_id, custom_slug } = req.body;
+
+    // Validasi format slug (hanya huruf, angka, strip)
+    const slugRegex = /^[a-zA-Z0-9-_]+$/;
+    if (!slugRegex.test(custom_slug)) {
+        return res.status(400).json({ message: 'Nama URL hanya boleh huruf, angka, dan tanda strip (-).' });
+    }
+
+    // Update database
+    const query = 'UPDATE devices SET public_slug = ? WHERE device_id = ? AND user_id = ?';
+    db.query(query, [custom_slug, device_id, userId], (err, results) => {
+        if (err) {
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(409).json({ message: 'Nama URL ini sudah dipakai orang lain. Pilih nama lain.' });
+            }
+            return res.status(500).json({ message: 'Gagal menyimpan URL.' });
+        }
+        res.json({ message: 'URL publik berhasil dibuat!', url: `/${custom_slug}` });
+    });
+});
+
+// 3. API Publik untuk mengambil data berdasarkan Slug
+app.get('/api/public/view/:slug', (req, res) => {
+    const slug = req.params.slug;
+
+    // Cari device berdasarkan slug
+    const queryDevice = 'SELECT device_id, device_name FROM devices WHERE public_slug = ?';
+
+    db.query(queryDevice, [slug], (err, devices) => {
+        if (err || devices.length === 0) {
+            return res.status(404).json({ message: 'Halaman tidak ditemukan.' });
+        }
+
+        const deviceId = devices[0].device_id;
+        const deviceName = devices[0].device_name;
+
+        // Ambil Widgets
+        const queryWidgets = "SELECT sensor_type, widget_type, data_type, current_value FROM widgets WHERE device_id = ?";
+
+        // Ambil Data Sensor Terakhir (agar grafik tidak kosong)
+        const queryData = "SELECT sensor_type, value, timestamp FROM sensor_data WHERE device_id = ? AND timestamp >= NOW() - INTERVAL 1 DAY ORDER BY timestamp ASC";
+
+        db.query(queryWidgets, [deviceId], (errW, widgets) => {
+            if (errW) return res.status(500).json({ message: 'Error widgets' });
+
+            db.query(queryData, [deviceId], (errD, sensorData) => {
+                if (errD) return res.status(500).json({ message: 'Error data' });
+
+                res.json({
+                    device_id: deviceId, // <--- TAMBAHKAN INI
+                    device_name: deviceName,
+                    widgets: widgets,
+                    data: sensorData
+                });
+            });
+        });
+    });
+});
 
 // --- Jalankan Server ---
-server.listen(port,'0.0.0.0', () => {
+server.listen(port, '0.0.0.0', () => {
     console.log(`Server (Express + Socket.IO) berjalan di http://localhost:${port}`);
 });

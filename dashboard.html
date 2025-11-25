@@ -315,6 +315,7 @@
             <ul id="deviceList">
                 <p>Memuat perangkat...</p>
             </ul>
+
         </div>
     </div>
 
@@ -325,9 +326,9 @@
         <select id="activeDeviceSelect">
             <option value="">-- Pilih Perangkat --</option>
         </select>
-
         <button id="showWidgetFormButton" style="display: none;">+ Tambah Variabel</button>
-
+        <button id="shareDeviceButton" style="background-color: #6f42c1; margin-left: 10px;">🔗 Share Link</button>
+        
         <div id="widgetFormContainer" style="display: none;">
             <h3 id="widgetFormTitle">Tambah Variabel Baru untuk...</h3>
             <form id="widgetForm">
@@ -367,8 +368,8 @@
         }
 
         // --- Koneksi WebSocket ---
-        // Ganti '192.168.137.38' dengan IP server Node.js Anda jika diakses dari perangkat lain
-        const socket = io("http://192.168.137.38:3001", { auth: { token: token } });
+        // Ganti '192.168.100.119' dengan IP server Node.js Anda jika diakses dari perangkat lain
+        const socket = io("http://192.168.100.119:3001", { auth: { token: token } });
         socket.on('connect', () => console.log('Terhubung ke server real-time!', socket.id));
         socket.on('disconnect', () => console.log('Koneksi real-time terputus.'));
         socket.on('newData', (data) => {
@@ -443,14 +444,14 @@
             try {
                 console.log("Memulai loadInitialData...");
                 dashboardContainer.innerHTML = '<p>Memuat perangkat...</p>'; // Update status
-                allUserDevices = await fetchWithAuth('http://192.168.137.38:3001/api/devices') || [];
+                allUserDevices = await fetchWithAuth('http://192.168.100.119:3001/api/devices') || [];
                 populateDeviceLists(allUserDevices);
 
                 dashboardContainer.innerHTML = '<p>Memuat widget...</p>'; // Update status
-                allUserWidgets = await fetchWithAuth('http://192.168.137.38:3001/api/widgets') || [];
+                allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets') || [];
 
                 dashboardContainer.innerHTML = '<p>Memuat data sensor...</p>'; // Update status
-                allSensorData = await fetchWithAuth('http://192.168.137.38:3001/api/data') || [];
+                allSensorData = await fetchWithAuth('http://192.168.100.119:3001/api/data') || [];
 
                 console.log("Data awal berhasil dimuat.");
 
@@ -677,6 +678,7 @@
         // --- EVENT LISTENERS ---
 
         // 0. Mulai!
+// 0. Mulai!
         document.addEventListener('DOMContentLoaded', () => {
 
             // 1. ASSIGN VARIABEL DOM SETELAH LOAD
@@ -686,44 +688,55 @@
             showWidgetFormButton = document.getElementById('showWidgetFormButton');
             widgetFormContainer = document.getElementById('widgetFormContainer');
             widgetFormTitle = document.getElementById('widgetFormTitle');
+            downloadCsvButton = document.getElementById('downloadCsvButton');
+            
+            // (BARU) Tombol Share
+            // Pastikan Anda sudah menambahkan <button id="shareDeviceButton"...> di HTML-nya
+            const shareDeviceButton = document.getElementById('shareDeviceButton'); 
 
             // 2. Muat data awal
             loadInitialData();
 
             // 3. Pasang semua event listener
+
+            // A. Ganti Perangkat Aktif
             activeDeviceSelect.addEventListener('change', (e) => {
                 displayWidgetsForDevice(e.target.value);
             });
 
+            // B. Logout
             document.getElementById('logoutButton').addEventListener('click', () => {
                 localStorage.removeItem('iot_token');
                 window.location.href = 'login.html';
             });
 
+            // C. Submit Form Registrasi Device
             document.getElementById('deviceForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const deviceName = document.getElementById('device_name').value;
                 const apiKeyResult = document.getElementById('apiKeyResult');
                 const newApiKey = document.getElementById('newApiKey');
                 try {
-                    const data = await fetchWithAuth('http://192.168.137.38:3001/api/devices', {
+                    const data = await fetchWithAuth('http://192.168.100.119:3001/api/devices', {
                         method: 'POST', body: JSON.stringify({ device_name: deviceName })
                     });
                     newApiKey.textContent = data.apiKey;
                     apiKeyResult.style.display = 'block';
                     document.getElementById('deviceForm').reset();
-                    allUserDevices = await fetchWithAuth('http://192.168.137.38:3001/api/devices');
+                    allUserDevices = await fetchWithAuth('http://192.168.100.119:3001/api/devices');
                     populateDeviceLists(allUserDevices);
                 } catch (error) {
                     alert(error.message);
                 }
             });
 
+            // D. Tampilkan/Sembunyikan Form Widget
             showWidgetFormButton.addEventListener('click', () => {
                 const isHidden = widgetFormContainer.style.display === 'none';
                 widgetFormContainer.style.display = isHidden ? 'block' : 'none';
             });
 
+            // E. Submit Form Tambah Widget
             document.getElementById('widgetForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const selectedDeviceId = activeDeviceSelect.value;
@@ -735,26 +748,27 @@
                     data_type: document.getElementById('dataType').value
                 };
                 try {
-                    await fetchWithAuth('http://192.168.137.38:3001/api/widgets', {
+                    await fetchWithAuth('http://192.168.100.119:3001/api/widgets', {
                         method: 'POST', body: JSON.stringify(payload)
                     });
                     alert('Widget berhasil dibuat!');
                     document.getElementById('widgetForm').reset();
                     widgetFormContainer.style.display = 'none';
-                    allUserWidgets = await fetchWithAuth('http://192.168.137.38:3001/api/widgets');
-                    allSensorData = await fetchWithAuth('http://192.168.137.38:3001/api/data');
+                    allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets');
+                    allSensorData = await fetchWithAuth('http://192.168.100.119:3001/api/data'); // Refresh data juga
                     displayWidgetsForDevice(selectedDeviceId);
                 } catch (error) {
                     alert(error.message);
                 }
             });
 
+            // F. Hapus Perangkat (di List)
             document.getElementById('deviceListContainer').addEventListener('click', async (e) => {
                 if (e.target.classList.contains('btn-delete')) {
                     const deviceId = e.target.dataset.deviceId;
                     if (!confirm('YAKIN menghapus perangkat ini? \nSEMUA widget dan data sensor yang terkait akan HILANG SELAMANYA.')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.137.38:3001/api/devices/${deviceId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.100.119:3001/api/devices/${deviceId}`, { method: 'DELETE' });
                         alert('Perangkat berhasil dihapus.');
                         await loadInitialData();
                         displayWidgetsForDevice(null);
@@ -764,15 +778,16 @@
                 }
             });
 
+            // G. Hapus Widget (di Dashboard)
             dashboardContainer.addEventListener('click', async (e) => {
                 if (e.target.classList.contains('widget-delete')) {
                     const widgetId = e.target.dataset.widgetId;
                     if (!confirm('Yakin ingin menghapus widget ini?')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.137.38:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.100.119:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
                         alert('Widget berhasil dihapus.');
                         const selectedDeviceId = activeDeviceSelect.value;
-                        allUserWidgets = await fetchWithAuth('http://192.168.137.38:3001/api/widgets');
+                        allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets');
                         displayWidgetsForDevice(selectedDeviceId);
                     } catch (error) {
                         alert(error.message);
@@ -780,7 +795,7 @@
                 }
             });
 
-
+            // H. Kontrol Toggle Switch (Kirim Perintah ke Server)
             dashboardContainer.addEventListener('change', (e) => {
                 if (e.target.classList.contains('widget-toggle')) {
                     const widgetId = e.target.dataset.widgetId;
@@ -790,8 +805,59 @@
                 }
             });
 
-        }); // <-- TUTUP Kurung kurawal DOMContentLoaded
+            // I. Download CSV
+            if(downloadCsvButton) {
+                downloadCsvButton.addEventListener('click', downloadDeviceDataAsCSV);
+            }
 
+            // J. (BARU) Share Link
+// J. (DIPERBAIKI) Share Link (Cek dulu sebelum buat baru)
+            if(shareDeviceButton) {
+                shareDeviceButton.addEventListener('click', async () => {
+                    const selectedDeviceId = activeDeviceSelect.value;
+                    if (!selectedDeviceId) return;
+
+                    // 1. Cari data perangkat di memori lokal
+                    const device = allUserDevices.find(d => d.device_id == selectedDeviceId);
+                    
+                    // 2. Cek apakah sudah punya public_slug
+                    if (device && device.public_slug) {
+                        // JIKA SUDAH ADA: Langsung tampilkan link-nya
+                        const fullUrl = `http://${window.location.hostname}:3001/${device.public_slug}`;
+                        prompt("Link Publik SUDAH ADA. Silakan salin:", fullUrl);
+                        return; // Berhenti di sini, jangan minta input baru
+                    }
+
+                    // 3. JIKA BELUM ADA: Minta input nama custom
+                    let customName = prompt("Link belum ada. Masukkan nama unik (contoh: kebunku):");
+                    
+                    if (customName) {
+                        // Bersihkan spasi dan karakter aneh
+                        customName = customName.replace(/[^a-zA-Z0-9-_]/g, ''); 
+                        
+                        try {
+                            const response = await fetchWithAuth('http://192.168.100.119:3001/api/devices/share', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    device_id: selectedDeviceId,
+                                    custom_slug: customName
+                                })
+                            });
+                            
+                            // Update data lokal agar kalau diklik lagi tidak minta input
+                            device.public_slug = customName;
+
+                            // Tampilkan Link
+                            const fullUrl = `http://${window.location.hostname}:3001${response.url}`;
+                            prompt("Link Publik Berhasil Dibuat! Silakan salin:", fullUrl);
+                            
+                        } catch (error) {
+                            alert("Gagal membuat link: " + error.message);
+                        }
+                    }
+                });
+            }
+        }); // <-- TUTUP Kurung kurawal DOMContentLoaded
     </script>
 </body>
 
