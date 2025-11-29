@@ -368,8 +368,8 @@
         }
 
         // --- Koneksi WebSocket ---
-        // Ganti '192.168.100.119' dengan IP server Node.js Anda jika diakses dari perangkat lain
-        const socket = io("http://192.168.100.119:3001", { auth: { token: token } });
+        // Ganti '192.168.13.167' dengan IP server Node.js Anda jika diakses dari perangkat lain
+        const socket = io("http://192.168.13.167:3001", { auth: { token: token } });
         socket.on('connect', () => console.log('Terhubung ke server real-time!', socket.id));
         socket.on('disconnect', () => console.log('Koneksi real-time terputus.'));
         socket.on('newData', (data) => {
@@ -444,14 +444,14 @@
             try {
                 console.log("Memulai loadInitialData...");
                 dashboardContainer.innerHTML = '<p>Memuat perangkat...</p>'; // Update status
-                allUserDevices = await fetchWithAuth('http://192.168.100.119:3001/api/devices') || [];
+                allUserDevices = await fetchWithAuth('http://192.168.13.167:3001/api/devices') || [];
                 populateDeviceLists(allUserDevices);
 
                 dashboardContainer.innerHTML = '<p>Memuat widget...</p>'; // Update status
-                allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets') || [];
+                allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets') || [];
 
                 dashboardContainer.innerHTML = '<p>Memuat data sensor...</p>'; // Update status
-                allSensorData = await fetchWithAuth('http://192.168.100.119:3001/api/data') || [];
+                allSensorData = await fetchWithAuth('http://192.168.13.167:3001/api/data') || [];
 
                 console.log("Data awal berhasil dimuat.");
 
@@ -717,13 +717,13 @@
                 const apiKeyResult = document.getElementById('apiKeyResult');
                 const newApiKey = document.getElementById('newApiKey');
                 try {
-                    const data = await fetchWithAuth('http://192.168.100.119:3001/api/devices', {
+                    const data = await fetchWithAuth('http://192.168.13.167:3001/api/devices', {
                         method: 'POST', body: JSON.stringify({ device_name: deviceName })
                     });
                     newApiKey.textContent = data.apiKey;
                     apiKeyResult.style.display = 'block';
                     document.getElementById('deviceForm').reset();
-                    allUserDevices = await fetchWithAuth('http://192.168.100.119:3001/api/devices');
+                    allUserDevices = await fetchWithAuth('http://192.168.13.167:3001/api/devices');
                     populateDeviceLists(allUserDevices);
                 } catch (error) {
                     alert(error.message);
@@ -748,14 +748,14 @@
                     data_type: document.getElementById('dataType').value
                 };
                 try {
-                    await fetchWithAuth('http://192.168.100.119:3001/api/widgets', {
+                    await fetchWithAuth('http://192.168.13.167:3001/api/widgets', {
                         method: 'POST', body: JSON.stringify(payload)
                     });
                     alert('Widget berhasil dibuat!');
                     document.getElementById('widgetForm').reset();
                     widgetFormContainer.style.display = 'none';
-                    allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets');
-                    allSensorData = await fetchWithAuth('http://192.168.100.119:3001/api/data'); // Refresh data juga
+                    allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets');
+                    allSensorData = await fetchWithAuth('http://192.168.13.167:3001/api/data'); // Refresh data juga
                     displayWidgetsForDevice(selectedDeviceId);
                 } catch (error) {
                     alert(error.message);
@@ -768,7 +768,7 @@
                     const deviceId = e.target.dataset.deviceId;
                     if (!confirm('YAKIN menghapus perangkat ini? \nSEMUA widget dan data sensor yang terkait akan HILANG SELAMANYA.')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.100.119:3001/api/devices/${deviceId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.13.167:3001/api/devices/${deviceId}`, { method: 'DELETE' });
                         alert('Perangkat berhasil dihapus.');
                         await loadInitialData();
                         displayWidgetsForDevice(null);
@@ -784,10 +784,10 @@
                     const widgetId = e.target.dataset.widgetId;
                     if (!confirm('Yakin ingin menghapus widget ini?')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.100.119:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.13.167:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
                         alert('Widget berhasil dihapus.');
                         const selectedDeviceId = activeDeviceSelect.value;
-                        allUserWidgets = await fetchWithAuth('http://192.168.100.119:3001/api/widgets');
+                        allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets');
                         displayWidgetsForDevice(selectedDeviceId);
                     } catch (error) {
                         alert(error.message);
@@ -836,7 +836,7 @@
                         customName = customName.replace(/[^a-zA-Z0-9-_]/g, ''); 
                         
                         try {
-                            const response = await fetchWithAuth('http://192.168.100.119:3001/api/devices/share', {
+                            const response = await fetchWithAuth('http://192.168.13.167:3001/api/devices/share', {
                                 method: 'POST',
                                 body: JSON.stringify({
                                     device_id: selectedDeviceId,
