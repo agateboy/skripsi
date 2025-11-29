@@ -297,14 +297,20 @@ app.get('/api/data/device/:id', autentikasiToken, (req, res) => {
 app.post('/api/widgets', autentikasiToken, (req, res) => {
     const userId = req.user.userId;
     const { device_id, sensor_type, widget_type, data_type } = req.body;
+
     if (!device_id || !sensor_type || !widget_type || !data_type) {
         return res.status(400).json({ message: 'Semua field wajib diisi' });
     }
 
-    // Nilai default untuk toggle adalah 'false'
-    const defaultValue = (widget_type === 'toggle') ? 'false' : '';
+    // --- PERUBAHAN DI SINI ---
+    // Tentukan nilai awal: Toggle='false', Slider='0', Lainnya=''
+    let defaultValue = '';
+    if (widget_type === 'toggle') defaultValue = 'false';
+    if (widget_type === 'slider') defaultValue = '0'; 
+    // --------------------------
 
     const query = 'INSERT INTO widgets (user_id, device_id, sensor_type, widget_type, data_type, current_value) VALUES (?, ?, ?, ?, ?, ?)';
+    
     db.query(query, [userId, device_id, sensor_type, widget_type, data_type, defaultValue], (err, results) => {
         if (err) {
             console.error('Error creating widget:', err);

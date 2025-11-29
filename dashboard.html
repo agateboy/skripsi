@@ -190,7 +190,37 @@
             min-width: 250px;
         }
 
-        /* Lebar widget toggle */
+        .widget.slider {
+            /* Gunakan ukuran yang sama dengan Toggle */
+            width: calc(33.33% - 10px);
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-width: 250px;
+
+            /* Pastikan background putih & ada border */
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            position: relative;
+            /* Agar tidak melayang */
+        }
+
+        .widget.toggle,
+        .widget.slider {
+            width: 300px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            /* Tambahkan ini agar isi tidak keluar */
+            overflow: hidden;
+        }
+
 
         .widget-delete {
             position: absolute;
@@ -213,12 +243,15 @@
             background: #e60000;
         }
 
-        /* --- CSS UNTUK TOGGLE SWITCH --- */
         .widget-body {
             display: flex;
             align-items: center;
             justify-content: center;
             flex-grow: 1;
+            width: 100%;
+            /* Paksa lebar penuh */
+            box-sizing: border-box;
+            /* Agar padding dihitung dalam lebar */
         }
 
         .switch {
@@ -273,9 +306,9 @@
 
             .widget.graph,
             .widget.gauge,
-            .widget.toggle {
-                width: calc(100% - 10px);
-                /* Satu kolom di layar kecil */
+            .widget.toggle,
+            .widget.slider {
+                width: 100%;
             }
 
             .container-wrapper {
@@ -328,7 +361,7 @@
         </select>
         <button id="showWidgetFormButton" style="display: none;">+ Tambah Variabel</button>
         <button id="shareDeviceButton" style="background-color: #6f42c1; margin-left: 10px;">🔗 Share Link</button>
-        
+
         <div id="widgetFormContainer" style="display: none;">
             <h3 id="widgetFormTitle">Tambah Variabel Baru untuk...</h3>
             <form id="widgetForm">
@@ -342,6 +375,8 @@
                         <option value="graph">Graph (Line Chart)</option>
                         <option value="gauge">Gauge (Meteran)</option>
                         <option value="toggle">Toggle (On/Off)</option>
+                        <option value="slider">Slider (PWM)</option>
+                    </select>
                     </select>
                 </div>
                 <div>
@@ -382,13 +417,26 @@
         });
         socket.on('widgetStateUpdated', (data) => {
             console.log('Status widget diperbarui:', data);
+
+            // Update data lokal
             const widgetIndex = allUserWidgets.findIndex(w => w.widget_id == data.widget_id);
             if (widgetIndex > -1) {
                 allUserWidgets[widgetIndex].current_value = data.current_value;
             }
-            const toggleInput = document.querySelector(`input[data-widget-id="${data.widget_id}"]`);
+
+            // 1. Update Toggle (Kode Lama)
+            const toggleInput = document.querySelector(`input.widget-toggle[data-widget-id="${data.widget_id}"]`);
             if (toggleInput) {
                 toggleInput.checked = (data.current_value === 'true');
+            }
+
+            // 2. Update Slider (TAMBAHAN BARU)
+            const sliderInput = document.querySelector(`input.widget-slider[data-widget-id="${data.widget_id}"]`);
+            if (sliderInput) {
+                sliderInput.value = data.current_value;
+                // Update teks angka juga
+                const display = document.getElementById(`val-display-${data.widget_id}`);
+                if (display) display.textContent = data.current_value;
             }
         });
 
@@ -520,56 +568,88 @@
                 renderWidget(widget);
             });
         }
-
-        // --- FUNGSI RENDER WIDGET (Termasuk Toggle) ---
         function renderWidget(widget) {
+            // 1. Buat Wadah Utama Widget (Kotak Putih)
             const widgetEl = document.createElement('div');
             widgetEl.className = `widget ${widget.widget_type}`;
             widgetEl.id = `widget-${widget.widget_id}`;
 
+            // 2. Buat Tombol Hapus
             const deleteButton = document.createElement('button');
             deleteButton.className = 'widget-delete';
             deleteButton.innerHTML = '&times;';
             deleteButton.dataset.widgetId = widget.widget_id;
 
+            // 3. Buat Judul
             const title = document.createElement('h3');
             title.textContent = `${widget.sensor_type} (${widget.device_name})`;
 
+            // Masukkan Tombol Hapus & Judul ke Kotak Putih
             widgetEl.appendChild(deleteButton);
             widgetEl.appendChild(title);
 
             let canvasId = null;
 
+            // --- LOGIKA KONTEN WIDGET BERDASARKAN TIPE ---
+
             if (widget.widget_type === 'graph' || widget.widget_type === 'gauge') {
+                // --- GRAPH & GAUGE ---
                 const canvas = document.createElement('canvas');
                 canvasId = `canvas-${widget.widget_id}`;
                 canvas.id = canvasId;
+                // Masukkan canvas ke Kotak Putih
                 widgetEl.appendChild(canvas);
 
             } else if (widget.widget_type === 'toggle') {
+                // --- TOGGLE SWITCH ---
                 const widgetBody = document.createElement('div');
                 widgetBody.className = 'widget-body';
                 const isChecked = (widget.current_value === 'true');
                 widgetBody.innerHTML = `
                     <label class="switch">
-                        <input type="checkbox"
-                               class="widget-toggle"
-                               data-widget-id="${widget.widget_id}"
+                        <input type="checkbox" 
+                               class="widget-toggle" 
+                               data-widget-id="${widget.widget_id}" 
                                ${isChecked ? 'checked' : ''}>
                         <span class="slider"></span>
                     </label>
                 `;
+                // Masukkan body toggle ke Kotak Putih
+                widgetEl.appendChild(widgetBody);
+
+            } else if (widget.widget_type === 'slider') {
+                const widgetBody = document.createElement('div');
+                widgetBody.className = 'widget-body';
+
+                const currentValue = parseInt(widget.current_value) || 0;
+
+                widgetBody.innerHTML = `
+                    <div style="width: 100%; padding: 0 10px; text-align: center;">
+                        <input type="range" min="0" max="255" value="${currentValue}" 
+                               class="widget-slider" 
+                               data-widget-id="${widget.widget_id}"
+                               style="width: 100%; cursor: pointer;">
+                        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 1.2em;">
+                            <span id="val-display-${widget.widget_id}">${currentValue}</span>
+                        </p>
+                    </div>
+                `;
+
                 widgetEl.appendChild(widgetBody);
             }
 
+            // 4. Terakhir, tempel Kotak Putih (yang sudah lengkap) ke Dashboard Utama
             dashboardContainer.appendChild(widgetEl);
 
+            // --- LOGIKA GAMBAR CHART (ASYNC) ---
+            // Hanya dijalankan jika widgetnya Graph atau Gauge
             const widgetData = Array.isArray(allSensorData) ? allSensorData.filter(d =>
                 d.device_id === widget.device_id &&
                 d.sensor_type === widget.sensor_type
             ) : [];
 
             if (widget.widget_type === 'graph' || widget.widget_type === 'gauge') {
+                // Gunakan setTimeout agar elemen canvas dirender dulu oleh browser
                 setTimeout(() => {
                     try {
                         if (widget.widget_type === 'graph') {
@@ -578,12 +658,11 @@
                             drawGauge(canvasId, widgetData, widget.data_type);
                         }
                     } catch (e) {
-                        console.error(`Error rendering widget ${widget.widget_id} (${widget.sensor_type}):`, e);
+                        console.error(`Error rendering widget ${widget.widget_id}:`, e);
                     }
                 }, 0);
             }
         }
-
         function drawGraph(canvasId, data) {
             const canvasElement = document.getElementById(canvasId);
             if (!canvasElement) { console.error(`Canvas ${canvasId} tidak ditemukan!`); return; }
@@ -678,7 +757,7 @@
         // --- EVENT LISTENERS ---
 
         // 0. Mulai!
-// 0. Mulai!
+        // 0. Mulai!
         document.addEventListener('DOMContentLoaded', () => {
 
             // 1. ASSIGN VARIABEL DOM SETELAH LOAD
@@ -689,10 +768,10 @@
             widgetFormContainer = document.getElementById('widgetFormContainer');
             widgetFormTitle = document.getElementById('widgetFormTitle');
             downloadCsvButton = document.getElementById('downloadCsvButton');
-            
+
             // (BARU) Tombol Share
             // Pastikan Anda sudah menambahkan <button id="shareDeviceButton"...> di HTML-nya
-            const shareDeviceButton = document.getElementById('shareDeviceButton'); 
+            const shareDeviceButton = document.getElementById('shareDeviceButton');
 
             // 2. Muat data awal
             loadInitialData();
@@ -797,29 +876,53 @@
 
             // H. Kontrol Toggle Switch (Kirim Perintah ke Server)
             dashboardContainer.addEventListener('change', (e) => {
+                // 1. Handle Toggle (Kode Lama)
                 if (e.target.classList.contains('widget-toggle')) {
                     const widgetId = e.target.dataset.widgetId;
                     const newState = e.target.checked ? 'true' : 'false';
-                    console.log(`Mengirim perintah: Widget ${widgetId} -> ${newState}`);
+                    console.log(`Mengirim Toggle: ${widgetId} -> ${newState}`);
                     socket.emit('widgetStateChange', { widgetId: widgetId, newState: newState });
+                }
+
+                // 2. Handle Slider (TAMBAHAN BARU)
+                // Event 'change' hanya dikirim saat user MELEPAS slider (hemat bandwidth)
+                if (e.target.classList.contains('widget-slider')) {
+                    const widgetId = e.target.dataset.widgetId;
+                    const newValue = e.target.value;
+
+                    // Update angka di layar
+                    const display = document.getElementById(`val-display-${widgetId}`);
+                    if (display) display.textContent = newValue;
+
+                    console.log(`Mengirim Slider: ${widgetId} -> ${newValue}`);
+                    socket.emit('widgetStateChange', { widgetId: widgetId, newState: newValue });
+                }
+            });
+
+            // Opsional: Agar angka berubah saat digeser (sebelum dilepas)
+            dashboardContainer.addEventListener('input', (e) => {
+                if (e.target.classList.contains('widget-slider')) {
+                    const widgetId = e.target.dataset.widgetId;
+                    const display = document.getElementById(`val-display-${widgetId}`);
+                    if (display) display.textContent = e.target.value;
                 }
             });
 
             // I. Download CSV
-            if(downloadCsvButton) {
+            if (downloadCsvButton) {
                 downloadCsvButton.addEventListener('click', downloadDeviceDataAsCSV);
             }
 
             // J. (BARU) Share Link
-// J. (DIPERBAIKI) Share Link (Cek dulu sebelum buat baru)
-            if(shareDeviceButton) {
+            // J. (DIPERBAIKI) Share Link (Cek dulu sebelum buat baru)
+            if (shareDeviceButton) {
                 shareDeviceButton.addEventListener('click', async () => {
                     const selectedDeviceId = activeDeviceSelect.value;
                     if (!selectedDeviceId) return;
 
                     // 1. Cari data perangkat di memori lokal
                     const device = allUserDevices.find(d => d.device_id == selectedDeviceId);
-                    
+
                     // 2. Cek apakah sudah punya public_slug
                     if (device && device.public_slug) {
                         // JIKA SUDAH ADA: Langsung tampilkan link-nya
@@ -830,11 +933,11 @@
 
                     // 3. JIKA BELUM ADA: Minta input nama custom
                     let customName = prompt("Link belum ada. Masukkan nama unik (contoh: kebunku):");
-                    
+
                     if (customName) {
                         // Bersihkan spasi dan karakter aneh
-                        customName = customName.replace(/[^a-zA-Z0-9-_]/g, ''); 
-                        
+                        customName = customName.replace(/[^a-zA-Z0-9-_]/g, '');
+
                         try {
                             const response = await fetchWithAuth('http://192.168.13.167:3001/api/devices/share', {
                                 method: 'POST',
@@ -843,14 +946,14 @@
                                     custom_slug: customName
                                 })
                             });
-                            
+
                             // Update data lokal agar kalau diklik lagi tidak minta input
                             device.public_slug = customName;
 
                             // Tampilkan Link
                             const fullUrl = `http://${window.location.hostname}:3001${response.url}`;
                             prompt("Link Publik Berhasil Dibuat! Silakan salin:", fullUrl);
-                            
+
                         } catch (error) {
                             alert("Gagal membuat link: " + error.message);
                         }

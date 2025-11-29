@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS widgets (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE CASCADE
 ALTER TABLE devices ADD COLUMN public_slug VARCHAR(100) UNIQUE DEFAULT NULL;
+ALTER TABLE `widgets` MODIFY COLUMN `widget_type` ENUM('graph', 'gauge', 'toggle', 'slider') NOT NULL;
 );
 
 -- Keluar
