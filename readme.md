@@ -1,12 +1,12 @@
 IoT Monitoring & Control Dashboard (Skripsi)
-Proyek ini adalah platform IoT berbasis web yang memungkinkan pengguna untuk memantau data sensor dan mengontrol aktuator secara real-time. Sistem ini dibangun menggunakan Node.js (Backend), MySQL (Database), dan HTML/JS Native (Frontend).
+Proyek ini adalah platform IoT berbasis web yang memungkinkan pengguna untuk memantau data sensor dan mengontrol aktuator secara real-time. Sistem ini dibangun menggunakan Node.js (Backend), SQLite (Database), dan HTML/JS Native (Frontend).
 
 📋 Prasyarat (System Requirements)
 Sebelum memulai, pastikan laptop/server Anda (Lubuntu/Ubuntu) sudah terinstall paket berikut:
 
 Node.js & NPM (Runtime JavaScript)
 
-MySQL Server (Database)
+
 
 Git (Version Control)
 
@@ -14,7 +14,7 @@ Jika belum, jalankan perintah ini di terminal:
 
 ```bash
 sudo apt update
-sudo apt install nodejs npm mysql-server git -y
+sudo apt install nodejs npm git -y
 ```
 
 🚀 Langkah Instalasi (Dari Awal)
@@ -31,11 +31,10 @@ cd skripsi
 IoT Monitoring & Control Dashboard
 
 Deskripsi
-Proyek ini adalah platform IoT berbasis web untuk memantau data sensor dan mengontrol aktuator secara real-time. Backend dibuat dengan Node.js, database menggunakan MySQL, dan frontend berupa file HTML/JavaScript statis.
+Proyek ini adalah platform IoT berbasis web untuk memantau data sensor dan mengontrol aktuator secara real-time. Backend dibuat dengan Node.js, database menggunakan SQLite, dan frontend berupa file HTML/JavaScript statis.
 
 Prasyarat
 - **Node.js & NPM:** runtime JavaScript
-- **MySQL Server:** database
 - **Git:** version control
 
 Jika belum terpasang (Ubuntu/Lubuntu), jalankan:

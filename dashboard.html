@@ -338,7 +338,7 @@
             </form>
             <div id="apiKeyResult" style="display:none; margin-top: 15px;">
                 <h4>Perangkat Berhasil Didaftar!</h4>
-                <p>Salin API Key (Token) ini ke ESP32 Anda:</p>
+                <p>Salin API Key ini ke ESP32 Anda (Hanya muncul sekali, harap disimpan!):</p>
                 <code id="newApiKey"
                     style="background: #eee; padding: 5px; border-radius: 4px; display: block; word-wrap: break-word;"></code>
             </div>
@@ -374,9 +374,9 @@
                     <select id="widgetType" required>
                         <option value="graph">Graph (Line Chart)</option>
                         <option value="gauge">Gauge (Meteran)</option>
+                        <option value="number">Number (Angka)</option>
                         <option value="toggle">Toggle (On/Off)</option>
                         <option value="slider">Slider (PWM)</option>
-                    </select>
                     </select>
                 </div>
                 <div>
@@ -397,14 +397,28 @@
     </div>
 
     <script>
+                // Batasi tipe data jika widgetType toggle atau number
+                document.addEventListener('DOMContentLoaded', () => {
+                    const widgetTypeSelect = document.getElementById('widgetType');
+                    const dataTypeSelect = document.getElementById('dataType');
+                    widgetTypeSelect.addEventListener('change', function() {
+                        if (this.value === 'toggle') {
+                            dataTypeSelect.innerHTML = '<option value="boolean">Boolean (On/Off)</option>';
+                        } else if (this.value === 'number') {
+                            dataTypeSelect.innerHTML = '<option value="float">Float (Desimal)</option><option value="integer">Integer (Bulat)</option>';
+                        } else {
+                            dataTypeSelect.innerHTML = '<option value="float">Float (Desimal)</option><option value="integer">Integer (Bulat)</option><option value="boolean">Boolean (On/Off)</option>';
+                        }
+                    });
+                });
         const token = localStorage.getItem('iot_token');
         if (!token) {
             window.location.href = 'login.html';
         }
 
         // --- Koneksi WebSocket ---
-        // Ganti '192.168.13.167' dengan IP server Node.js Anda jika diakses dari perangkat lain
-        const socket = io("http://192.168.13.167:3001", { auth: { token: token } });
+        // Ganti '192.168.1.50' dengan IP server Node.js Anda jika diakses dari perangkat lain
+        const socket = io("http://192.168.1.50:3001", { auth: { token: token } });
         socket.on('connect', () => console.log('Terhubung ke server real-time!', socket.id));
         socket.on('disconnect', () => console.log('Koneksi real-time terputus.'));
         socket.on('newData', (data) => {
@@ -492,14 +506,14 @@
             try {
                 console.log("Memulai loadInitialData...");
                 dashboardContainer.innerHTML = '<p>Memuat perangkat...</p>'; // Update status
-                allUserDevices = await fetchWithAuth('http://192.168.13.167:3001/api/devices') || [];
+                allUserDevices = await fetchWithAuth('http://192.168.1.50:3001/api/devices') || [];
                 populateDeviceLists(allUserDevices);
 
                 dashboardContainer.innerHTML = '<p>Memuat widget...</p>'; // Update status
-                allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets') || [];
+                allUserWidgets = await fetchWithAuth('http://192.168.1.50:3001/api/widgets') || [];
 
                 dashboardContainer.innerHTML = '<p>Memuat data sensor...</p>'; // Update status
-                allSensorData = await fetchWithAuth('http://192.168.13.167:3001/api/data') || [];
+                allSensorData = await fetchWithAuth('http://192.168.1.50:3001/api/data') || [];
 
                 console.log("Data awal berhasil dimuat.");
 
@@ -582,7 +596,12 @@
 
             // 3. Buat Judul
             const title = document.createElement('h3');
-            title.textContent = `${widget.sensor_type} (${widget.device_name})`;
+            // Jika widget sensor_type adalah "suhu", tampilkan "Suhu" saja
+            if (widget.sensor_type.toLowerCase() === 'suhu') {
+                title.textContent = 'Suhu';
+            } else {
+                title.textContent = `${widget.sensor_type} (${widget.device_name})`;
+            }
 
             // Masukkan Tombol Hapus & Judul ke Kotak Putih
             widgetEl.appendChild(deleteButton);
@@ -796,13 +815,13 @@
                 const apiKeyResult = document.getElementById('apiKeyResult');
                 const newApiKey = document.getElementById('newApiKey');
                 try {
-                    const data = await fetchWithAuth('http://192.168.13.167:3001/api/devices', {
+                    const data = await fetchWithAuth('http://192.168.1.50:3001/api/devices', {
                         method: 'POST', body: JSON.stringify({ device_name: deviceName })
                     });
                     newApiKey.textContent = data.apiKey;
                     apiKeyResult.style.display = 'block';
                     document.getElementById('deviceForm').reset();
-                    allUserDevices = await fetchWithAuth('http://192.168.13.167:3001/api/devices');
+                    allUserDevices = await fetchWithAuth('http://192.168.1.50:3001/api/devices');
                     populateDeviceLists(allUserDevices);
                 } catch (error) {
                     alert(error.message);
@@ -827,14 +846,14 @@
                     data_type: document.getElementById('dataType').value
                 };
                 try {
-                    await fetchWithAuth('http://192.168.13.167:3001/api/widgets', {
+                    await fetchWithAuth('http://192.168.1.50:3001/api/widgets', {
                         method: 'POST', body: JSON.stringify(payload)
                     });
                     alert('Widget berhasil dibuat!');
                     document.getElementById('widgetForm').reset();
                     widgetFormContainer.style.display = 'none';
-                    allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets');
-                    allSensorData = await fetchWithAuth('http://192.168.13.167:3001/api/data'); // Refresh data juga
+                    allUserWidgets = await fetchWithAuth('http://192.168.1.50:3001/api/widgets');
+                    allSensorData = await fetchWithAuth('http://192.168.1.50:3001/api/data'); // Refresh data juga
                     displayWidgetsForDevice(selectedDeviceId);
                 } catch (error) {
                     alert(error.message);
@@ -847,7 +866,7 @@
                     const deviceId = e.target.dataset.deviceId;
                     if (!confirm('YAKIN menghapus perangkat ini? \nSEMUA widget dan data sensor yang terkait akan HILANG SELAMANYA.')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.13.167:3001/api/devices/${deviceId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.1.50:3001/api/devices/${deviceId}`, { method: 'DELETE' });
                         alert('Perangkat berhasil dihapus.');
                         await loadInitialData();
                         displayWidgetsForDevice(null);
@@ -863,10 +882,10 @@
                     const widgetId = e.target.dataset.widgetId;
                     if (!confirm('Yakin ingin menghapus widget ini?')) return;
                     try {
-                        await fetchWithAuth(`http://192.168.13.167:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
+                        await fetchWithAuth(`http://192.168.1.50:3001/api/widgets/${widgetId}`, { method: 'DELETE' });
                         alert('Widget berhasil dihapus.');
                         const selectedDeviceId = activeDeviceSelect.value;
-                        allUserWidgets = await fetchWithAuth('http://192.168.13.167:3001/api/widgets');
+                        allUserWidgets = await fetchWithAuth('http://192.168.1.50:3001/api/widgets');
                         displayWidgetsForDevice(selectedDeviceId);
                     } catch (error) {
                         alert(error.message);
@@ -939,7 +958,7 @@
                         customName = customName.replace(/[^a-zA-Z0-9-_]/g, '');
 
                         try {
-                            const response = await fetchWithAuth('http://192.168.13.167:3001/api/devices/share', {
+                            const response = await fetchWithAuth('http://192.168.1.50:3001/api/devices/share', {
                                 method: 'POST',
                                 body: JSON.stringify({
                                     device_id: selectedDeviceId,
